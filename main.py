@@ -1,28 +1,34 @@
 import time,random,os,sounddevice as sd,speech_recognition as sr
+from scipy.io import wavfile
 from googletrans import Translator
 translator=Translator()
 recognizer=sr.Recognizer()
 WORDS_BANK={"easy":["кот","собака","яблоко","книга","солнце","вода","дом","друг"],"medium":["компьютер","путешествие","справедливость","приключение","университет","бабочка"],"hard":["достопримечательность","самоотверженность","предприниматель","взаимопонимание"]}
-def record_and_recognize(duration=4,fs=44100):
+def record_audio(filename="output.wav",duration=4,fs=44100):
  print("🎤 Запись пошла... Говорите!")
- r=sd.rec(int(duration*fs),samplerate=fs,channels=1,dtype='int16')
+ myrecording=sd.rec(int(duration*fs),samplerate=fs,channels=1,dtype='int16')
  sd.wait()
+ wavfile.write(filename,fs,myrecording)
  print("⏱ Запись завершена. Обработка...")
- try:
-  aud=sr.AudioData(r.tobytes(),fs,2)
-  return recognizer.recognize_google(aud,language="en-US").lower().strip()
- except:return ""
+def recognize_audio(filename="output.wav"):
+ with sr.AudioFile(filename) as source:
+  audio_data=recognizer.record(source)
+  try:return recognizer.recognize_google(audio_data,language="en-US").lower().strip()
+  except:return ""
 def get_hint(word_en):
  if len(word_en)<=2:return "Слово слишком короткое для подсказки!"
- return f"Подсказка: Слово начинается на '{word_en}', заканчивается на '{word_en[-1]}' и состоит из {len(word_en)} букв."
+ return f"Подсказка: Слово начинается на '{word_en[0]}', заканчивается на '{word_en[-1]}' и состоит из {len(word_en)} букв."
 def get_best_score():
  if not os.path.exists("stats.txt"):return 0
  b_sc=0
  try:
   with open("stats.txt","r",encoding="utf-8") as f:
    for line in f:
-    if "Очки:" in line:
-     try:b_sc=max(b_sc,int(line.split("Очки:")[1].split("(")[0].strip()))
+    if "Очки: " in line:
+     try:
+      parts=line.split("Очки: ")
+      score_part=parts[1].split(" ")[0]
+      b_sc=max(b_sc,int(score_part))
      except:pass
  except:pass
  return b_sc
@@ -57,7 +63,8 @@ def main():
    print("Приготовьтесь... Запись начнется через 3 секунды.")
    for i in range(3,0,-1):
     print(f"{i}...");time.sleep(1)
-   user_speech_en=record_and_recognize(duration=4)
+   record_audio(duration=4)
+   user_speech_en=recognize_audio()
    print(f"🤖 Вы сказали: '{user_speech_en}'")
    if user_speech_en==correct_translation_en:
     score+=10
@@ -73,14 +80,14 @@ def main():
   best_score=get_best_score()
   if lives<=0:print("💀 GAME OVER! У вас закончились жизни. 💀")
   else:
-   print("🏆 ПОЗДРАВЛЯЕМ! Вы прошли все слова на этом уровне! 🏆")
+   print("🏆 ПОЗДРАВЛЯЕМ! Вы прошли все слова на этом уровень! 🏆")
    print(f"🎁 Бонус за сохраненные жизни ({lives} шт.): +{bonus} баллов!")
   print(f" Финальный результат: {final_score} баллов.")
   if final_score>best_score and best_score>0:print(f"🔥 НОВЫЙ РЕКОРД! Вы побили прошлый лучший результат в {best_score} баллов! 🎉")
   elif best_score>0:print(f"📈 Прошлый лучший рекорд: {best_score} баллов. Есть к чему стремиться!")
   print("="*60)
   with open("stats.txt","a",encoding="utf-8") as f:
-   f.write(f"Дата: {time.strftime('%Y-%m-%d %H:%M:%S')} | Уровень: {level.upper()} | Итог: {status} | Очки: {final_score} (Bonus: {bonus}) | Оставшиеся жизни: {lives}/{max_lives}\n")
+   f.write(f"Дата: {time.strftime('%Y-%m-%d %H:%M:%S')} | Уровень: {level.upper()} | Итог: {status} | Очки: {final_score} (Бонус: {bonus}) | Оставшиеся жизни: {lives}/{max_lives}\n")
   print("💾 Результаты игры успешно записаны в файл stats.txt!")
   if input("\n🔄 Хотите сыграть еще раз? (y/n): ").lower().strip()!='y':
    print("👋 Спасибо за игру! До встречи!");break
