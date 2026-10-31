@@ -1,20 +1,17 @@
 import time,random,os,sounddevice as sd,speech_recognition as sr
-from scipy.io import wavfile
 from googletrans import Translator
 translator=Translator()
 recognizer=sr.Recognizer()
 WORDS_BANK={"easy":["кот","собака","яблоко","книга","солнце","вода","дом","друг"],"medium":["компьютер","путешествие","справедливость","приключение","университет","бабочка"],"hard":["достопримечательность","самоотверженность","предприниматель","взаимопонимание"]}
-def record_audio(filename="output.wav",duration=4,fs=44100):
+def record_and_recognize(duration=4,fs=44100):
  print("🎤 Запись пошла... Говорите!")
- myrecording=sd.rec(int(duration*fs),samplerate=fs,channels=1,dtype='int16')
+ r=sd.rec(int(duration*fs),samplerate=fs,channels=1,dtype='int16')
  sd.wait()
- wavfile.write(filename,fs,myrecording)
  print("⏱ Запись завершена. Обработка...")
-def recognize_audio(filename="output.wav"):
- with sr.AudioFile(filename) as source:
-  audio_data=recognizer.record(source)
-  try:return recognizer.recognize_google(audio_data,language="en-US").lower().strip()
-  except:return ""
+ try:
+  aud=sr.AudioData(r.tobytes(),fs,2)
+  return recognizer.recognize_google(aud,language="en-US").lower().strip()
+ except:return ""
 def get_hint(word_en):
  if len(word_en)<=2:return "Слово слишком короткое для подсказки!"
  return f"Подсказка: Слово начинается на '{word_en[0]}', заканчивается на '{word_en[-1]}' и состоит из {len(word_en)} букв."
@@ -63,8 +60,7 @@ def main():
    print("Приготовьтесь... Запись начнется через 3 секунды.")
    for i in range(3,0,-1):
     print(f"{i}...");time.sleep(1)
-   record_audio(duration=4)
-   user_speech_en=recognize_audio()
+   user_speech_en=record_and_recognize(duration=4)
    print(f"🤖 Вы сказали: '{user_speech_en}'")
    if user_speech_en==correct_translation_en:
     score+=10
@@ -80,7 +76,7 @@ def main():
   best_score=get_best_score()
   if lives<=0:print("💀 GAME OVER! У вас закончились жизни. 💀")
   else:
-   print("🏆 ПОЗДРАВЛЯЕМ! Вы прошли все слова на этом уровень! 🏆")
+   print("🏆 ПОЗДРАВЛЯЕМ! Вы прошли все слова на этом уровне! 🏆")
    print(f"🎁 Бонус за сохраненные жизни ({lives} шт.): +{bonus} баллов!")
   print(f" Финальный результат: {final_score} баллов.")
   if final_score>best_score and best_score>0:print(f"🔥 НОВЫЙ РЕКОРД! Вы побили прошлый лучший результат в {best_score} баллов! 🎉")
